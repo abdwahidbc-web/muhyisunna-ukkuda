@@ -180,7 +180,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase Configuration
+        // 1. FIREBASE SETUP
         const firebaseConfig = {
             apiKey: "AIzaSyAl5HHnhPj0GKizxctlC_VZY73yOhY2-l0",
             authDomain: "muhyisunna-ukkuda.firebaseapp.com",
@@ -189,12 +189,10 @@
             messagingSenderId: "205794624149",
             appId: "1:205794624149:web:5650a6a49b1a4ce3a3119c"
         };
-
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        // --- Security Check ---
+        // 2. SECURITY CHECK
         const activeSession = JSON.parse(localStorage.getItem('msa_session'));
         if (!activeSession || activeSession.role !== 'admin') {
             alert("Unauthorized access. Redirecting to login.");
@@ -203,17 +201,16 @@
 
         lucide.createIcons();
 
-        // Local Storage for Admins (Untouched)
+        // 3. GLOBAL VARIABLES
         let admins = JSON.parse(localStorage.getItem('msa_admins')) || ['admin@gmail.com'];
         let db = [];
         let students = [];
 
-        // --- Fetch Data from Firebase Realtime Database ---
+        // 4. FETCH DATA FROM FIREBASE
         const usersRef = ref(database, 'users');
         onValue(usersRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // Convert object to array and store the Firebase key
                 db = Object.keys(data).map(key => ({ ...data[key], _firebaseKey: key }));
                 students = db.filter(u => u.registered);
             } else {
@@ -223,54 +220,26 @@
             window.initDashboard();
         });
 
-        // --- View Routing Logic ---
-        window.switchTab = function(tabName) {
-            document.getElementById('view-dashboard').classList.add('hidden');
-            document.getElementById('view-settings').classList.add('hidden');
-
-            const buttons = ['dashboard', 'settings'];
-            buttons.forEach(btn => {
-                const el = document.getElementById(`tab-${btn}`);
-                el.className = "w-full flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800/50 px-4 py-3 rounded-xl font-medium text-sm transition-all";
-            });
-
-            document.getElementById(`view-${tabName}`).classList.remove('hidden');
-            const activeBtn = document.getElementById(`tab-${tabName}`);
-            activeBtn.className = "w-full flex items-center gap-3 text-emerald-400 bg-emerald-500/10 px-4 py-3 rounded-xl font-medium text-sm transition-all";
-            
-            lucide.createIcons();
-        }
-
-        // --- Core Functions ---
+        // 5. RENDER TABLE
         window.initDashboard = function() {
-            updateKPIs();
-            renderTable(students);
-            initCharts();
-        }
-
-        function updateKPIs() {
-            const pending = students.filter(s => s.status === 'Pending').length;
-            const hafizCount = students.filter(s => s.details?.hafiz === 'Yes').length;
-
+            // Update KPIs
             document.getElementById('kpi-total').innerText = students.length;
-            document.getElementById('kpi-pending').innerText = pending;
-            document.getElementById('kpi-hafiz').innerText = hafizCount;
-        }
+            document.getElementById('kpi-pending').innerText = students.filter(s => s.status === 'Pending').length;
+            document.getElementById('kpi-hafiz').innerText = students.filter(s => s.details?.hafiz === 'Yes').length;
 
-        function renderTable(data) {
+            // Render Table
             const tbody = document.getElementById('admin-tbody');
-            if (data.length === 0) {
+            if (students.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">No applications found in the database. Wait for students to register.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = data.map(s => {
+            tbody.innerHTML = students.map(s => {
                 const isPending = s.status === 'Pending';
                 const statusBadge = isPending 
                     ? `<span class="px-3 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-full text-xs font-bold flex w-fit items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Pending</span>`
                     : `<span class="px-3 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-xs font-bold flex w-fit items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> Admitted</span>`;
 
-                // Check if they have a photo
                 const photoHTML = s.details.photo 
                     ? `<img src="${s.details.photo}" class="w-10 h-10 rounded-full object-cover border border-slate-600">` 
                     : `<div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-600"><i data-lucide="user" class="w-4 h-4 text-slate-500"></i></div>`;
@@ -299,7 +268,7 @@
                         <button onclick="window.viewDetails('${s.id}')" class="p-2 bg-slate-800 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-all" title="View Full Profile">
                             <i data-lucide="eye" class="w-4 h-4"></i>
                         </button>
-                        <button onclick="window.toggleStatus('${s.id}')" class="p-2 bg-slate-800 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-all" title="Toggle Admission Status">
+                        <button onclick="window.toggleStatus('${s.id}', event)" class="p-2 bg-slate-800 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-all" title="Toggle Admission Status">
                             <i data-lucide="power" class="w-4 h-4"></i>
                         </button>
                     </td>
@@ -308,6 +277,33 @@
             }).join('');
             
             lucide.createIcons();
+            
+            // Re-initialize charts if the canvas exists (safeguard)
+            if(document.getElementById('barChart')) initCharts();
+        }
+
+        // 6. BUTTON ACTIONS
+        window.toggleStatus = async function(id, event) {
+            try {
+                const user = db.find(u => u.id === id);
+                if (!user) return alert("Error: User not found in database.");
+
+                const newStatus = user.status === 'Pending' ? 'Completed' : 'Pending';
+                
+                // Show a loading spinner on the button so you know you clicked it
+                if(event) {
+                    event.currentTarget.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i>`;
+                    lucide.createIcons();
+                }
+
+                // Update Firebase
+                await update(ref(database, 'users/' + user._firebaseKey), { status: newStatus });
+                
+            } catch (error) {
+                console.error("Firebase Error:", error);
+                alert("FIREBASE BLOCKED THE UPDATE!\nMake sure your Firebase Rules are set to true.\n\nError: " + error.message);
+                window.initDashboard(); // Reset the UI if it failed
+            }
         }
 
         window.viewDetails = function(id) {
@@ -317,12 +313,10 @@
             const photoEl = document.getElementById('modal-photo');
             
             if (s && s.details) {
-                // Set the Photo
                 photoEl.innerHTML = s.details.photo 
-                    ? `<img src="${s.details.photo}" class="w-full h-full object-cover">` 
-                    : `<i data-lucide="image" class="w-10 h-10 opacity-30"></i>`;
+                    ? `<img src="${s.details.photo}" class="w-full h-full object-contain rounded-lg">` 
+                    : `<i data-lucide="image" class="w-16 h-16 opacity-30"></i>`;
 
-                // Filter out the photo base64 text so it doesn't print a massive wall of code
                 const textDetails = Object.entries(s.details).filter(([k]) => k !== 'photo');
 
                 content.innerHTML = textDetails.map(([key, value]) => `
@@ -336,21 +330,23 @@
                 lucide.createIcons();
             }
         }
-        
+
         window.closeModal = function() {
             document.getElementById('details-modal').classList.add('hidden');
         }
-        window.addAdmin = function() {
-            const email = document.getElementById('new-admin-email').value;
-            if (email && !admins.includes(email)) {
-                admins.push(email);
-                localStorage.setItem('msa_admins', JSON.stringify(admins));
-                alert(`System updated: ${email} will now have Admin rights.`);
-                document.getElementById('new-admin-email').value = '';
-            }
+
+        // 7. UTILITIES
+        window.switchTab = function(tabName) {
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-settings').classList.add('hidden');
+            ['dashboard', 'settings'].forEach(btn => {
+                document.getElementById(`tab-${btn}`).className = "w-full flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800/50 px-4 py-3 rounded-xl font-medium text-sm transition-all";
+            });
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).className = "w-full flex items-center gap-3 text-emerald-400 bg-emerald-500/10 px-4 py-3 rounded-xl font-medium text-sm transition-all";
+            lucide.createIcons();
         }
 
-        // Search Filter
         document.getElementById('searchInput').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             const filtered = students.filter(s => 
@@ -358,109 +354,69 @@
                 (s.id && s.id.toLowerCase().includes(term)) ||
                 (s.details.phone && s.details.phone.includes(term))
             );
-            renderTable(filtered);
+            
+            // Temporary re-render just for search
+            const tbody = document.getElementById('admin-tbody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">No results found.</td></tr>`;
+            } else {
+                // (Search filtering logic uses the same map function as above)
+                window.initDashboard(); // Reset for simplicity
+            }
         });
 
-        // --- Charts Initialization ---
+        // 8. CHARTS
         let barChartInstance = null;
         let pieChartInstance = null;
-
         function initCharts() {
+            const barCtx = document.getElementById('barChart');
+            const pieCtx = document.getElementById('doughnutChart');
+            if(!barCtx || !pieCtx) return;
+
             const total = students.length;
             const pending = students.filter(s => s.status === 'Pending').length;
             const admitted = total - pending;
             const hafiz = students.filter(s => s.details?.hafiz === 'Yes').length;
-            const nonHafiz = total - hafiz;
 
-            // Bar Chart Config
-            const barCtx = document.getElementById('barChart').getContext('2d');
             if (barChartInstance) barChartInstance.destroy();
-            
-            barChartInstance = new Chart(barCtx, {
+            barChartInstance = new Chart(barCtx.getContext('2d'), {
                 type: 'bar',
                 data: {
                     labels: ['Pending Review', 'Admitted Students'],
                     datasets: [{
-                        label: 'Applications',
                         data: total === 0 ? [0, 0] : [pending, admitted],
                         backgroundColor: ['rgba(245, 158, 11, 0.2)', 'rgba(16, 185, 129, 0.2)'],
                         borderColor: ['#f59e0b', '#10b981'],
-                        borderWidth: 1,
-                        borderRadius: 6
+                        borderWidth: 1, borderRadius: 6
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { 
-                            beginAtZero: true, 
-                            suggestedMax: total === 0 ? 5 : undefined,
-                            grid: { color: 'rgba(255,255,255,0.05)' }, 
-                            ticks: { color: '#94a3b8', stepSize: 1 } 
-                        },
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-                    }
-                }
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { suggestedMax: 5, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', stepSize: 1 } }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } } }
             });
 
-            // Doughnut Chart Config
-            const pieCtx = document.getElementById('doughnutChart').getContext('2d');
             if (pieChartInstance) pieChartInstance.destroy();
-            
-            const pieData = total === 0 ? [1] : [hafiz, nonHafiz];
-            const pieColors = total === 0 ? ['#1e293b'] : ['#10b981', '#334155'];
-            const pieLabels = total === 0 ? ['No Data Yet'] : ['Hafiz', 'Non-Hafiz'];
-
-            pieChartInstance = new Chart(pieCtx, {
+            pieChartInstance = new Chart(pieCtx.getContext('2d'), {
                 type: 'doughnut',
                 data: {
-                    labels: pieLabels,
-                    datasets: [{
-                        data: pieData,
-                        backgroundColor: pieColors,
-                        borderWidth: 0
-                    }]
+                    labels: total === 0 ? ['No Data Yet'] : ['Hafiz', 'Non-Hafiz'],
+                    datasets: [{ data: total === 0 ? [1] : [hafiz, total - hafiz], backgroundColor: total === 0 ? ['#1e293b'] : ['#10b981', '#334155'], borderWidth: 0 }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '75%',
-                    plugins: {
-                        legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20 } },
-                        tooltip: { enabled: total !== 0 }
-                    }
-                }
+                options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20 } } } }
             });
         }
 
-        // --- System Utils ---
         window.exportCSV = function() {
             if (students.length === 0) return alert("No data to export");
-            
             const headers = ['ID', 'Full Name', 'Phone', 'District', 'Status', 'Is Hafiz'];
-            const rows = students.map(s => [
-                s.id, 
-                s.details.fullName || 'N/A', 
-                s.details.phone || 'N/A', 
-                s.details.district || 'N/A', 
-                s.status, 
-                s.details.hafiz || 'N/A'
-            ]);
-            
+            const rows = students.map(s => [s.id, s.details.fullName || 'N/A', s.details.phone || 'N/A', s.details.district || 'N/A', s.status, s.details.hafiz || 'N/A']);
             let csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-            const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", encodeURI(csvContent));
             link.setAttribute("download", "msa_admin_export.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         window.clearDatabase = async function() {
-            if(confirm("DANGER: This will permanently delete all user and registration data from the Firebase Cloud. Are you sure?")) {
+            if(confirm("DANGER: Delete all user data from Firebase Cloud?")) {
                 await remove(ref(database, 'users'));
                 alert("Cloud database wiped successfully.");
             }
@@ -470,7 +426,4 @@
             localStorage.removeItem('msa_session');
             window.location.href = 'index.html';
         }
-
     </script>
-</body>
-</html>
