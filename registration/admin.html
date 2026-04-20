@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSA UKKUDA | Executive Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0f172a; color: #f8fafc; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #10b981; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <aside class="w-64 glass-card border-r border-slate-800 flex flex-col hidden md:flex">
+        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+            <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <i data-lucide="shield-check" class="text-white w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm tracking-wider text-white">MSA ADMIN</h1>
+                <p class="text-[10px] text-emerald-500 font-mono">SECURE PORTAL</p>
+            </div>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2" id="sidebar-nav">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="w-full flex items-center gap-3 text-emerald-400 bg-emerald-500/10 px-4 py-3 rounded-xl font-medium text-sm transition-all">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Main Dashboard
+            </button>
+            <button onclick="switchTab('settings')" id="tab-settings" class="w-full flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800/50 px-4 py-3 rounded-xl font-medium text-sm transition-all">
+                <i data-lucide="settings" class="w-4 h-4"></i> System Settings
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800 space-y-2">
+            <button onclick="clearDatabase()" class="w-full flex items-center justify-center gap-2 text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg font-medium text-xs transition-all border border-red-500/20">
+                <i data-lucide="alert-triangle" class="w-4 h-4"></i> Wipe Database
+            </button>
+            <button onclick="adminLogout()" class="w-full flex items-center justify-center gap-2 text-slate-400 hover:bg-slate-800 px-4 py-2 rounded-lg font-medium text-xs transition-all border border-slate-700">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Secure Logout
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto">
+        
+        <header class="glass-card sticky top-0 z-10 px-8 py-4 flex justify-between items-center border-b border-slate-800">
+            <div>
+                <h2 class="text-xl font-bold text-white">System Overview</h2>
+                <p class="text-xs text-slate-400">Executive Control Panel</p>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="exportCSV()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
+                    <i data-lucide="download" class="w-4 h-4"></i> Export CSV
+                </button>
+            </div>
+        </header>
+
+        <div class="p-8 relative">
+            
+            <div id="view-dashboard" class="space-y-8 transition-all duration-300">
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-card p-6 rounded-2xl relative overflow-hidden border border-slate-700/50">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full -mr-4 -mt-4"></div>
+                        <div class="flex items-center gap-4 mb-2">
+                            <div class="p-3 bg-emerald-500/20 rounded-xl"><i data-lucide="users" class="text-emerald-400"></i></div>
+                            <h3 class="text-slate-400 font-medium text-sm uppercase tracking-wider">Total Enrolled</h3>
+                        </div>
+                        <p id="kpi-total" class="text-4xl font-bold text-white mt-4">0</p>
+                    </div>
+                    
+                    <div class="glass-card p-6 rounded-2xl relative overflow-hidden border border-slate-700/50">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-bl-full -mr-4 -mt-4"></div>
+                        <div class="flex items-center gap-4 mb-2">
+                            <div class="p-3 bg-amber-500/20 rounded-xl"><i data-lucide="clock" class="text-amber-400"></i></div>
+                            <h3 class="text-slate-400 font-medium text-sm uppercase tracking-wider">Pending Review</h3>
+                        </div>
+                        <p id="kpi-pending" class="text-4xl font-bold text-white mt-4">0</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-2xl relative overflow-hidden border border-slate-700/50">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4"></div>
+                        <div class="flex items-center gap-4 mb-2">
+                            <div class="p-3 bg-blue-500/20 rounded-xl"><i data-lucide="book-open" class="text-blue-400"></i></div>
+                            <h3 class="text-slate-400 font-medium text-sm uppercase tracking-wider">Hafiz Students</h3>
+                        </div>
+                        <p id="kpi-hafiz" class="text-4xl font-bold text-white mt-4">0</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 glass-card p-6 rounded-2xl border border-slate-700/50 shadow-lg">
+                        <h3 class="text-sm font-bold text-slate-300 mb-6 uppercase tracking-wider">Status Distribution</h3>
+                        <div class="h-64">
+                            <canvas id="barChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl border border-slate-700/50 shadow-lg">
+                        <h3 class="text-sm font-bold text-slate-300 mb-6 uppercase tracking-wider">Hafiz Ratio</h3>
+                        <div class="h-64 flex justify-center">
+                            <canvas id="doughnutChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl overflow-hidden mt-8 border border-slate-700 shadow-2xl">
+                    <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                        <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                            <i data-lucide="list" class="w-5 h-5 text-emerald-400"></i> Application Master List
+                        </h3>
+                        <div class="relative">
+                            <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-500"></i>
+                            <input type="text" id="searchInput" placeholder="Search by name or ID..." class="bg-slate-950 border border-slate-700 text-white text-sm rounded-lg pl-10 pr-4 py-2 focus:border-emerald-500 focus:outline-none w-64 transition-all">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-950/80 text-xs text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="p-4 pl-6">Student Info</th>
+                                    <th class="p-4">Contact & Location</th>
+                                    <th class="p-4">Education</th>
+                                    <th class="p-4">Status</th>
+                                    <th class="p-4 text-right pr-6">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-tbody" class="text-sm divide-y divide-slate-800/50">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="view-settings" class="space-y-8 hidden transition-all duration-300">
+                <div class="glass-card p-8 rounded-2xl max-w-2xl border border-slate-700 shadow-2xl">
+                    <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                        <i data-lucide="settings" class="w-5 h-5 text-emerald-400"></i> System Configuration
+                    </h3>
+                    <div class="space-y-6">
+                        <div class="bg-slate-900/50 p-6 rounded-xl border border-slate-800">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Assign New Admin (Gmail)</label>
+                            <p class="text-xs text-slate-500 mb-4">Users added here will bypass the student application and have full access to this dashboard.</p>
+                            <div class="flex gap-2">
+                                <input type="email" id="new-admin-email" class="bg-slate-950 border border-slate-700 text-white text-sm rounded-lg px-4 py-2 w-full focus:border-emerald-500 focus:outline-none" placeholder="admin@gmail.com">
+                                <button onclick="addAdmin()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all shadow-lg shadow-emerald-900/20">Grant Access</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+   <div id="details-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-2xl rounded-2xl p-6 relative border border-slate-700 max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            <h2 class="text-xl font-bold text-emerald-400 border-b border-slate-700 pb-4 mb-6">Complete Student Profile</h2>
+            
+            <div class="flex justify-center mb-6">
+                <div id="modal-photo" class="w-32 h-32 rounded-full bg-slate-800 border-4 border-emerald-500/50 flex items-center justify-center overflow-hidden text-slate-500 shadow-xl"></div>
+            </div>
+
+            <div id="modal-content" class="grid grid-cols-2 gap-4 text-sm text-slate-300">
+                </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAl5HHnhPj0GKizxctlC_VZY73yOhY2-l0",
+            authDomain: "muhyisunna-ukkuda.firebaseapp.com",
+            projectId: "muhyisunna-ukkuda",
+            storageBucket: "muhyisunna-ukkuda.firebasestorage.app",
+            messagingSenderId: "205794624149",
+            appId: "1:205794624149:web:5650a6a49b1a4ce3a3119c"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // --- Security Check ---
+        const activeSession = JSON.parse(localStorage.getItem('msa_session'));
+        if (!activeSession || activeSession.role !== 'admin') {
+            alert("Unauthorized access. Redirecting to login.");
+            window.location.href = 'index.html';
+        }
+
+        lucide.createIcons();
+
+        // Local Storage for Admins (Untouched)
+        let admins = JSON.parse(localStorage.getItem('msa_admins')) || ['admin@gmail.com'];
+        let db = [];
+        let students = [];
+
+        // --- Fetch Data from Firebase Realtime Database ---
+        const usersRef = ref(database, 'users');
+        onValue(usersRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Convert object to array and store the Firebase key
+                db = Object.keys(data).map(key => ({ ...data[key], _firebaseKey: key }));
+                students = db.filter(u => u.registered);
+            } else {
+                db = [];
+                students = [];
+            }
+            window.initDashboard();
+        });
+
+        // --- View Routing Logic ---
+        window.switchTab = function(tabName) {
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-settings').classList.add('hidden');
+
+            const buttons = ['dashboard', 'settings'];
+            buttons.forEach(btn => {
+                const el = document.getElementById(`tab-${btn}`);
+                el.className = "w-full flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800/50 px-4 py-3 rounded-xl font-medium text-sm transition-all";
+            });
+
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${tabName}`);
+            activeBtn.className = "w-full flex items-center gap-3 text-emerald-400 bg-emerald-500/10 px-4 py-3 rounded-xl font-medium text-sm transition-all";
+            
+            lucide.createIcons();
+        }
+
+        // --- Core Functions ---
+        window.initDashboard = function() {
+            updateKPIs();
+            renderTable(students);
+            initCharts();
+        }
+
+        function updateKPIs() {
+            const pending = students.filter(s => s.status === 'Pending').length;
+            const hafizCount = students.filter(s => s.details?.hafiz === 'Yes').length;
+
+            document.getElementById('kpi-total').innerText = students.length;
+            document.getElementById('kpi-pending').innerText = pending;
+            document.getElementById('kpi-hafiz').innerText = hafizCount;
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('admin-tbody');
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">No applications found in the database. Wait for students to register.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map(s => {
+                const isPending = s.status === 'Pending';
+                const statusBadge = isPending 
+                    ? `<span class="px-3 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-full text-xs font-bold flex w-fit items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Pending</span>`
+                    : `<span class="px-3 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-xs font-bold flex w-fit items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> Admitted</span>`;
+
+                // Check if they have a photo
+                const photoHTML = s.details.photo 
+                    ? `<img src="${s.details.photo}" class="w-10 h-10 rounded-full object-cover border border-slate-600">` 
+                    : `<div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-600"><i data-lucide="user" class="w-4 h-4 text-slate-500"></i></div>`;
+
+                return `
+                <tr class="hover:bg-slate-800/30 transition-colors">
+                    <td class="p-4 pl-6 flex items-center gap-4">
+                        ${photoHTML}
+                        <div>
+                            <div class="font-bold text-white">${s.details.fullName}</div>
+                            <div class="text-xs text-slate-500 font-mono mt-1">${s.id}</div>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <div class="text-slate-300 flex items-center gap-1"><i data-lucide="phone" class="w-3 h-3 text-slate-500"></i> ${s.details.phone}</div>
+                        <div class="text-xs text-slate-500 mt-1">${s.details.district || ''}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="text-slate-300 text-xs line-clamp-1 border border-slate-700 bg-slate-900 rounded px-2 py-1 w-fit">Prev: ${s.details.prev || 'N/A'}</div>
+                        <div class="text-[10px] ${s.details.hafiz === 'Yes' ? 'text-emerald-400' : 'text-slate-500'} mt-1 font-bold">
+                            ${s.details.hafiz === 'Yes' ? '✓ HAFIZ' : 'NON-HAFIZ'}
+                        </div>
+                    </td>
+                    <td class="p-4">${statusBadge}</td>
+                    <td class="p-4 pr-6 text-right space-x-2">
+                        <button onclick="window.viewDetails('${s.id}')" class="p-2 bg-slate-800 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-all" title="View Full Profile">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="window.toggleStatus('${s.id}')" class="p-2 bg-slate-800 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-all" title="Toggle Admission Status">
+                            <i data-lucide="power" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+            
+            lucide.createIcons();
+        }
+
+        window.viewDetails = function(id) {
+            const s = students.find(u => u.id === id);
+            const modal = document.getElementById('details-modal');
+            const content = document.getElementById('modal-content');
+            const photoEl = document.getElementById('modal-photo');
+            
+            if (s && s.details) {
+                // Set the Photo
+                photoEl.innerHTML = s.details.photo 
+                    ? `<img src="${s.details.photo}" class="w-full h-full object-cover">` 
+                    : `<i data-lucide="image" class="w-10 h-10 opacity-30"></i>`;
+
+                // Filter out the photo base64 text so it doesn't print a massive wall of code
+                const textDetails = Object.entries(s.details).filter(([k]) => k !== 'photo');
+
+                content.innerHTML = textDetails.map(([key, value]) => `
+                    <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                        <span class="block text-xs text-emerald-500 uppercase tracking-wider mb-1">${key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                        <span class="text-white font-medium break-all">${value || 'N/A'}</span>
+                    </div>
+                `).join('');
+                
+                modal.classList.remove('hidden');
+                lucide.createIcons();
+            }
+        }
+        
+        window.closeModal = function() {
+            document.getElementById('details-modal').classList.add('hidden');
+        }
+        window.addAdmin = function() {
+            const email = document.getElementById('new-admin-email').value;
+            if (email && !admins.includes(email)) {
+                admins.push(email);
+                localStorage.setItem('msa_admins', JSON.stringify(admins));
+                alert(`System updated: ${email} will now have Admin rights.`);
+                document.getElementById('new-admin-email').value = '';
+            }
+        }
+
+        // Search Filter
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = students.filter(s => 
+                (s.details.fullName && s.details.fullName.toLowerCase().includes(term)) || 
+                (s.id && s.id.toLowerCase().includes(term)) ||
+                (s.details.phone && s.details.phone.includes(term))
+            );
+            renderTable(filtered);
+        });
+
+        // --- Charts Initialization ---
+        let barChartInstance = null;
+        let pieChartInstance = null;
+
+        function initCharts() {
+            const total = students.length;
+            const pending = students.filter(s => s.status === 'Pending').length;
+            const admitted = total - pending;
+            const hafiz = students.filter(s => s.details?.hafiz === 'Yes').length;
+            const nonHafiz = total - hafiz;
+
+            // Bar Chart Config
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+            
+            barChartInstance = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Pending Review', 'Admitted Students'],
+                    datasets: [{
+                        label: 'Applications',
+                        data: total === 0 ? [0, 0] : [pending, admitted],
+                        backgroundColor: ['rgba(245, 158, 11, 0.2)', 'rgba(16, 185, 129, 0.2)'],
+                        borderColor: ['#f59e0b', '#10b981'],
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            suggestedMax: total === 0 ? 5 : undefined,
+                            grid: { color: 'rgba(255,255,255,0.05)' }, 
+                            ticks: { color: '#94a3b8', stepSize: 1 } 
+                        },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+
+            // Doughnut Chart Config
+            const pieCtx = document.getElementById('doughnutChart').getContext('2d');
+            if (pieChartInstance) pieChartInstance.destroy();
+            
+            const pieData = total === 0 ? [1] : [hafiz, nonHafiz];
+            const pieColors = total === 0 ? ['#1e293b'] : ['#10b981', '#334155'];
+            const pieLabels = total === 0 ? ['No Data Yet'] : ['Hafiz', 'Non-Hafiz'];
+
+            pieChartInstance = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: pieLabels,
+                    datasets: [{
+                        data: pieData,
+                        backgroundColor: pieColors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20 } },
+                        tooltip: { enabled: total !== 0 }
+                    }
+                }
+            });
+        }
+
+        // --- System Utils ---
+        window.exportCSV = function() {
+            if (students.length === 0) return alert("No data to export");
+            
+            const headers = ['ID', 'Full Name', 'Phone', 'District', 'Status', 'Is Hafiz'];
+            const rows = students.map(s => [
+                s.id, 
+                s.details.fullName || 'N/A', 
+                s.details.phone || 'N/A', 
+                s.details.district || 'N/A', 
+                s.status, 
+                s.details.hafiz || 'N/A'
+            ]);
+            
+            let csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "msa_admin_export.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.clearDatabase = async function() {
+            if(confirm("DANGER: This will permanently delete all user and registration data from the Firebase Cloud. Are you sure?")) {
+                await remove(ref(database, 'users'));
+                alert("Cloud database wiped successfully.");
+            }
+        }
+
+        window.adminLogout = function() {
+            localStorage.removeItem('msa_session');
+            window.location.href = 'index.html';
+        }
+
+    </script>
+</body>
+</html>
